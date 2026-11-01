@@ -29,8 +29,9 @@ Rscript scripts/import-assignment.R <path> <id>
 That writes `assignments/<id>/<id>.Rmd` with figures extracted into
 `figures/`.
 
-Datasets live in `data/ass<n>/`; from inside an assignment that is
-`../../data/ass<n>/<file>.csv`.
+Datasets live in `data/ass<n>/` (git-ignored). Read them with
+`here("data", "ass<n>", "<file>.csv")` -- the template loads `here`, which
+resolves paths from the repository root however the document is knitted.
 
 Start a blank assignment:
 

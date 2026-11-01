@@ -34,6 +34,7 @@ options(dplyr.summarise.inform = FALSE)
 set.seed(42)
 
 {{LIBRARIES}}
+library(here)  # here("data", ...) is relative to the repository root
 ```
 
 {{BODY}}

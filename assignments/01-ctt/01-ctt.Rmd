@@ -35,6 +35,7 @@ set.seed(42)
 
 library(tidyverse)
 library(gtheory)
+library(here)  # here("data", ...) is relative to the repository root
 ```
 
 ## Case
@@ -50,67 +51,128 @@ Before the company wants to start using personality assessment, they have asked 
 *Read the data from `data_1_personality.csv` into your R working space. (0.5pt)*
 
 ```{r ex-1a}
-
+personality <- read.csv(here("data", "ass1", "data_1_personality.csv"))
+personality
 ```
 
 ### Exercise 1b
 
 *Write a function that returns Cronbach's alpha for a given set of the data using formula 1.5 from the book. (0.5pt) The function could look like this:*
 
-```{r ex-1b-given, eval = FALSE}
+```{r ex-1b}
 cronbach.alpha <- function(data){
-  
-  ...
-  
+  k <- ncol(data)
+  item_var <- sum(apply(data, 2, var))
+  total_var <- var(rowSums(data))
+
+  alpha <- (k / (k - 1)) * (1 - item_var / total_var)
+
   return(alpha)
 }
 ```
 
-```{r ex-1b}
-
-```
+$\alpha = \frac{k}{k-1}\left(1 - \frac{\sum \sigma^2_i}{\sigma^2_y}\right)$,
+where $k$ is the number of items, $\sigma^2_i$ the variance of item $i$, and
+$\sigma^2_y$ the variance of the scale score.
 
 ### Exercise 1c
 
 *Use the function you created above to calculate the Cronbach's alpha reliability coefficient for each subscale separately. (Round your answers to 2 decimals.) (0.5pt)*
 
 ```{r ex-1c}
+subscales <- c("P1", "P2", "P3")
 
+subscale_items <- function(p) {
+  personality[, startsWith(names(personality), p)]
+}
+
+scales <- sapply(subscales, function(p) {
+  cronbach.alpha(subscale_items(p))
+})
+round(scales, 2)
 ```
-
-Answer in prose here.
 
 ### Exercise 1d
 
 *Indicate for each sub-scale whether you think the reliability is poor/ questionable/ acceptable/ good. (hint: Cronbach's alpha is often called a measure of internal consistency as a type of reliability. Maybe wikipedia can help.) (0.5pt)*
 
-Answer in prose here.
+A common rule of thumb for interpreting alpha as internal consistency is:
+$\alpha \geq .9$ excellent, $.8 \leq \alpha < .9$ good, $.7 \leq \alpha < .8$
+acceptable, $.6 \leq \alpha < .7$ questionable, $.5 \leq \alpha < .6$ poor and
+$\alpha < .5$ unacceptable.
+
+```{r ex-1d}
+alpha.label <- function(alpha){
+  cut(alpha,
+      breaks = c(-Inf, .5, .6, .7, .8, .9, Inf),
+      labels = c("unacceptable", "poor", "questionable", "acceptable", "good", "excellent"),
+      right = FALSE
+  )
+}
+
+data.frame(alpha = round(scales, 2), reliability = alpha.label(scales))
+```
+
+None of the subscales reaches an acceptable level.
 
 ### Exercise 1e
 
 *For each sub-scale, investigate if removing one or more items from the scale would increase the overall reliability of the scale. Explain for each scale which items (if any) you would remove. (1pt)*
 
 ```{r ex-1e}
+item.stats <- function(data){
+  data.frame(
+    # alpha of the scale without this item
+    alpha.if.dropped = sapply(names(data), function(i) {
+      cronbach.alpha(data[, names(data) != i])
+    }),
+    # correlation of the item with the sum of the other items
+    item.rest.cor = sapply(names(data), function(i) {
+      cor(data[[i]], rowSums(data[, names(data) != i]))
+    })
+  )
+}
 
+lapply(setNames(subscales, subscales), function(p) {
+  round(item.stats(subscale_items(p)), 2)
+})
 ```
 
-Answer in prose here.
+I would remove P1_1 and P1_2 from P1, P2_3 from P2, and P3_4 and P3_6 from P3:
+each of these barely correlates with the rest of its scale, and dropping it raises alpha.
 
 ### Exercise 1f
 
 *Remove for each scale any items you would remove and report the new Cronbach's alpha for the sub-scale with the item(s) removed. (0.5pt)*
 
 ```{r ex-1f}
+removed <- c("P1_1", "P1_2", "P2_3", "P3_4", "P3_6")
 
+scales.clean <- sapply(subscales, function(p) {
+  items <- subscale_items(p)
+  cronbach.alpha(items[, !names(items) %in% removed])
+})
+
+data.frame(before = round(scales, 2), after = round(scales.clean, 2))
 ```
 
-Answer in prose here.
+With these items removed, alpha is `r sprintf("%.2f", scales.clean["P1"])` for P1,
+`r sprintf("%.2f", scales.clean["P2"])` for P2 and `r sprintf("%.2f", scales.clean["P3"])` for P3.
 
 ### Exercise 1g
 
 *Indicate for each sub-scale with the items removed whether you think the reliability of this scale is poor/questionable/acceptable/good. (0.5pt)*
 
-Answer in prose here.
+```{r ex-1g}
+data.frame(
+  before_alpha = round(scales, 2),
+  before_reliability = alpha.label(scales),
+  after_alpha = round(scales.clean, 2),
+  after_reliability = alpha.label(scales.clean)
+)
+```
+
+Now, all subscales reach the acceptable level of reliability.
 
 ## 2. Sources of variation
 
@@ -121,7 +183,8 @@ To make sure that the information on the self-report assessment is reliable, the
 *Read the data from `data_1_raters.csv` into your `R` working space. (0.5pt)*
 
 ```{r ex-2a}
-
+raters <- read.csv(here("data", "ass1", "data_1_raters.csv"))
+head(raters)
 ```
 
 ### Exercise 2b
@@ -129,7 +192,9 @@ To make sure that the information on the self-report assessment is reliable, the
 *Remove any items that you judged as being unreliable in the previous section from the P1 scale. (0.5pt)*
 
 ```{r ex-2b}
-
+# items 1 and 2 here are P1_1 and P1_2, removed in 1f
+raters <- raters[!raters$item %in% c(1, 2), ]
+table(raters$item)
 ```
 
 ### Exercise 2c
@@ -137,35 +202,47 @@ To make sure that the information on the self-report assessment is reliable, the
 *Use the `gstudy()` function from the `gtheory` package to decompose the total variance into subject, rater and item variance, and their 2nd order interactions. Report for each of these components the percentage of total variance they explain. (0.5pt)*
 
 ```{r ex-2c}
+g.formula <- score ~ (1 | subject) + (1 | rater) + (1 | item) +
+  (1 | subject:rater) + (1 | subject:item) + (1 | rater:item)
 
+g <- gstudy(raters, g.formula)
+g$components
+
+pct <- setNames(g$components$percent, g$components$source)
 ```
-
-Answer in prose here.
 
 ### Exercise 2d
 
 *Which source of (non-residual) variance, and which interaction source of variance explain the highest percentage of the total variation? (0.5pt)*
 
-Answer in prose here.
+Rater is the largest main source (`r pct["rater"]`%), and subject × rater the
+largest interaction (`r pct["subject:rater"]`%).
 
 ### Exercise 2e
 
 *Do you think that is desirable, why (not)? (0.5pt)*
 
-Answer in prose here.
+No: a score then depends more on who did the rating, and on how that rater
+judges a particular applicant, than on the applicant (subject only explains
+`r pct["subject"]`%).
 
 ### Exercise 2f
 
 *Which source(s) do you think should explain the most variance in cases such as these, why? (1pt)*
 
-Answer in prose here.
+Subject, because the ratings are meant to capture real differences in
+personality between applicants. Rater and its interactions should be close to
+zero: capable judges should give the same applicant the same score.
 
 ### Exercise 2g
 
 *Use the `spread()` function from the `tidyr` package to create a new data frame where each row contains the score of all 6 raters for one subject and one item. (0.5pt)*
 
 ```{r ex-2g}
-
+raters.wide <- raters %>%
+  mutate(rater = paste0("R", rater)) %>%
+  spread(rater, score)
+head(raters.wide)
 ```
 
 ### Exercise 2h
@@ -173,33 +250,51 @@ Answer in prose here.
 *Use the procedure from question 1 to determine if all the raters are reliable (treat each rater as the item for a common scale). What is the reliability of all raters together? (0.5pt)*
 
 ```{r ex-2h}
+rater.scores <- raters.wide[, paste0("R", 1:6)]
 
+alpha.raters <- cronbach.alpha(rater.scores)
+round(alpha.raters, 2)
+
+round(item.stats(rater.scores), 2)
 ```
 
-Answer in prose here.
+All raters together reach $\alpha$ = `r sprintf("%.2f", alpha.raters)`, but R2,
+R3 and R5 are not reliable: they barely correlate with the other raters.
 
 ### Exercise 2i
 
 *Indicate if removing one or more, and if so which, rater(s) would increase the overall reliability of judgments and report the new Cronbach's alpha for the group with these rater(s) removed. (0.5pt)*
 
 ```{r ex-2i}
+bad.raters <- c(2, 3, 5)
 
+alpha.raters.clean <- cronbach.alpha(
+  rater.scores[, !names(rater.scores) %in% paste0("R", bad.raters)]
+)
+round(alpha.raters.clean, 2)
 ```
 
-Answer in prose here.
+Removing R2, R3 and R5 raises alpha from `r sprintf("%.2f", alpha.raters)` to
+`r sprintf("%.2f", alpha.raters.clean)`.
 
 ### Exercise 2j
 
 *Remove any unreliable raters from the rater data and calculate and report the decomposition of the variance again as you did in question 2c. (0.5pt)*
 
 ```{r ex-2j}
+raters.clean <- raters[!raters$rater %in% bad.raters, ]
 
+g.clean <- gstudy(raters.clean, g.formula)
+g.clean$components
+
+pct.clean <- setNames(g.clean$components$percent, g.clean$components$source)
 ```
-
-Answer in prose here.
 
 ### Exercise 2k
 
 *Is the way the variance is explained more or less desirable compared to the output of question 2c? Explain why (not). (0.5pt)*
 
-Answer in prose here.
+More desirable: rater and rater interactions now explain almost nothing
+(rater `r pct.clean["rater"]`%, subject × rater `r pct.clean["subject:rater"]`%),
+so the scores reflect the applicants (subject `r pct.clean["subject"]`%,
+subject × item `r pct.clean["subject:item"]`%) rather than the judges.
