@@ -1,0 +1,205 @@
+---
+title: "Assignment 1: Classical Test Theory"
+subtitle: "Psychometrics"
+author: "Mariia Steeghs-Turchina"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    theme: cosmo
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    df_print: paged
+    code_download: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,          # the hand-in has to show the code
+  message = FALSE,
+  warning = FALSE,
+  error = TRUE,
+  comment = "#>",
+  collapse = TRUE,
+  fig.show = "hold",
+  fig.align = "default",
+  fig.width = 4,
+  fig.height = 4,
+  dpi = 150
+)
+
+options(dplyr.summarise.inform = FALSE)
+set.seed(42)
+
+library(tidyverse)
+library(gtheory)
+```
+
+## Case
+
+A large insurance company wants you to study the benefits of using personality assessments in their hiring policies. In the next 8 weeks you will investigate this question in several different ways.
+
+## 1. Reliability
+
+Before the company wants to start using personality assessment, they have asked you to make sure that the questionnaire they intend to use is reliable. The questionnaire, developed by their HR department, consists of 17 self-report items divided over 3 sub-scales (P1, P2, & P3). The questionnaire has been administered in a pilot study to 1500 people.
+
+### Exercise 1a
+
+*Read the data from `data_1_personality.csv` into your R working space. (0.5pt)*
+
+```{r ex-1a}
+
+```
+
+### Exercise 1b
+
+*Write a function that returns Cronbach's alpha for a given set of the data using formula 1.5 from the book. (0.5pt) The function could look like this:*
+
+```{r ex-1b-given, eval = FALSE}
+cronbach.alpha <- function(data){
+  
+  ...
+  
+  return(alpha)
+}
+```
+
+```{r ex-1b}
+
+```
+
+### Exercise 1c
+
+*Use the function you created above to calculate the Cronbach's alpha reliability coefficient for each subscale separately. (Round your answers to 2 decimals.) (0.5pt)*
+
+```{r ex-1c}
+
+```
+
+Answer in prose here.
+
+### Exercise 1d
+
+*Indicate for each sub-scale whether you think the reliability is poor/ questionable/ acceptable/ good. (hint: Cronbach's alpha is often called a measure of internal consistency as a type of reliability. Maybe wikipedia can help.) (0.5pt)*
+
+Answer in prose here.
+
+### Exercise 1e
+
+*For each sub-scale, investigate if removing one or more items from the scale would increase the overall reliability of the scale. Explain for each scale which items (if any) you would remove. (1pt)*
+
+```{r ex-1e}
+
+```
+
+Answer in prose here.
+
+### Exercise 1f
+
+*Remove for each scale any items you would remove and report the new Cronbach's alpha for the sub-scale with the item(s) removed. (0.5pt)*
+
+```{r ex-1f}
+
+```
+
+Answer in prose here.
+
+### Exercise 1g
+
+*Indicate for each sub-scale with the items removed whether you think the reliability of this scale is poor/questionable/acceptable/good. (0.5pt)*
+
+Answer in prose here.
+
+## 2. Sources of variation
+
+To make sure that the information on the self-report assessment is reliable, the company also asked recruiters to judge new applications on the sub-scale P1. The idea here is that if a participant answers truthfully their answers should overlap with the judgement of the recruiter. As the insurance company works with multiple recruiting agencies, they have asked you to investigate if the recruiters are all capable judges of personality. You are given the data from 200 applicants that are each rated by 6 different judges on the items of the P1 sub-scale.
+
+### Exercise 2a
+
+*Read the data from `data_1_raters.csv` into your `R` working space. (0.5pt)*
+
+```{r ex-2a}
+
+```
+
+### Exercise 2b
+
+*Remove any items that you judged as being unreliable in the previous section from the P1 scale. (0.5pt)*
+
+```{r ex-2b}
+
+```
+
+### Exercise 2c
+
+*Use the `gstudy()` function from the `gtheory` package to decompose the total variance into subject, rater and item variance, and their 2nd order interactions. Report for each of these components the percentage of total variance they explain. (0.5pt)*
+
+```{r ex-2c}
+
+```
+
+Answer in prose here.
+
+### Exercise 2d
+
+*Which source of (non-residual) variance, and which interaction source of variance explain the highest percentage of the total variation? (0.5pt)*
+
+Answer in prose here.
+
+### Exercise 2e
+
+*Do you think that is desirable, why (not)? (0.5pt)*
+
+Answer in prose here.
+
+### Exercise 2f
+
+*Which source(s) do you think should explain the most variance in cases such as these, why? (1pt)*
+
+Answer in prose here.
+
+### Exercise 2g
+
+*Use the `spread()` function from the `tidyr` package to create a new data frame where each row contains the score of all 6 raters for one subject and one item. (0.5pt)*
+
+```{r ex-2g}
+
+```
+
+### Exercise 2h
+
+*Use the procedure from question 1 to determine if all the raters are reliable (treat each rater as the item for a common scale). What is the reliability of all raters together? (0.5pt)*
+
+```{r ex-2h}
+
+```
+
+Answer in prose here.
+
+### Exercise 2i
+
+*Indicate if removing one or more, and if so which, rater(s) would increase the overall reliability of judgments and report the new Cronbach's alpha for the group with these rater(s) removed. (0.5pt)*
+
+```{r ex-2i}
+
+```
+
+Answer in prose here.
+
+### Exercise 2j
+
+*Remove any unreliable raters from the rater data and calculate and report the decomposition of the variance again as you did in question 2c. (0.5pt)*
+
+```{r ex-2j}
+
+```
+
+Answer in prose here.
+
+### Exercise 2k
+
+*Is the way the variance is explained more or less desirable compared to the output of question 2c? Explain why (not). (0.5pt)*
+
+Answer in prose here.
