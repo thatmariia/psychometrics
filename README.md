@@ -17,6 +17,7 @@ renv::restore()
 | id | Title | Source | Hand-in |
 |----|-------|--------|---------|
 | `01-ctt` | Assignment 1: Classical Test Theory | [Rmd](assignments/01-ctt/01-ctt.Rmd) | [HTML](output/01-ctt.html) |
+| `02-irt` | Assignment 2: Item Response Theory | [Rmd](assignments/02-irt/02-irt.Rmd) | [HTML](output/02-irt.html) |
 
 ## Starting a new assignment
 

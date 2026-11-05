@@ -1,0 +1,294 @@
+---
+title: "Assignment 2: Item Response Theory"
+subtitle: "Psychometrics"
+author: "Mariia Steeghs-Turchina"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    theme: cosmo
+    highlight: tango
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+    df_print: paged
+    code_download: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,          # the hand-in has to show the code
+  message = FALSE,
+  warning = FALSE,
+  error = TRUE,
+  comment = "#>",
+  collapse = TRUE,
+  fig.show = "hold",
+  fig.align = "default",
+  fig.width = 4,
+  fig.height = 4,
+  dpi = 150
+)
+
+options(dplyr.summarise.inform = FALSE)
+set.seed(42)
+
+library(eRm)
+library(ltm)
+library(tidyverse)  # after ltm, so MASS::select() doesn't mask dplyr::select()
+library(here)  # here("data", ...) is relative to the repository root
+```
+
+## Case
+
+A large insurance company wants you to study the benefits of using personality assessments in their hiring policies. You have investigated the reliability of both the questionnaire the company wants to use, as well as the reliability of the recruiters who find new applicants for the company. Furthermore, you examined whether the theoretical model of three underlying factors (P1, P2, P3) was reasonable. This week you will use IRT to assign a personality score to new applicants, and use this score to decide who to invite for a job interview.
+
+## 1. Unidimensional Dichotomous IRT Models
+
+Although the company eventually plans to use polytomous IRT to estimate personality scores from the data, they initially made a binary version of the questionnaire. Therefore, they first want you to assess some of the item characteristics of this early stage questionnaire using unidimensional dichotomous IRT models. This questionnaire was administered to the same people as the polytomous questionnaire.
+
+### Exercise 1a
+
+*Read the data from `data_3_personality_bin.csv` into your R working space.*
+
+```{r ex-1a}
+personality.bin <- read.csv(here("data", "ass2", "data_3_personality_bin.csv"))
+head(personality.bin)
+
+# the item columns, without gender, education and age
+items.bin <- personality.bin[, startsWith(names(personality.bin), "P")]
+```
+
+### Exercise 1b
+
+*Fit a Rasch model to the data (without covariates) and give the conditional log-likelihood of the model. Side note: Any guesses what the conditional log-likelihood is conditional on? (0.5pt)*
+
+```{r ex-1b}
+rasch.erm <- RM(items.bin)
+rasch.erm$loglik
+```
+
+The conditional log-likelihood is `r sprintf("%.2f", rasch.erm$loglik)`. It is
+conditional on the persons' sum scores: these are sufficient for the person
+parameters, so the person parameters drop out of the likelihood.
+
+### Exercise 1c
+
+*Give the item difficulty parameters (rounded to 4 digits) of the model. Which item is the easiest and which is the most difficult? (0.5pt)*
+
+```{r ex-1c}
+# eRm's betas are easiness parameters, so difficulty = -beta
+difficulty.rasch <- setNames(-coef(rasch.erm), names(items.bin))
+round(sort(difficulty.rasch), 4)
+```
+
+`r names(which.min(difficulty.rasch))` is the easiest item and
+`r names(which.max(difficulty.rasch))` the most difficult.
+
+### Exercise 1d
+
+*Test if the Rasch model is invariant across gender. (0.5pt)*
+
+```{r ex-1d}
+lr.gender <- LRtest(rasch.erm, splitcr = personality.bin$gender)
+lr.gender
+```
+
+Andersen's LR test is significant (p `r format.pval(lr.gender$pvalue, eps = .001)`),
+so the Rasch model is not invariant across gender.
+
+### Exercise 1e
+
+*If the model is not invariant, which items are responsible for the misfit? If it is, report your code for this follow up analysis regardless (0.5pt)*
+
+```{r ex-1e}
+wald.gender <- Waldtest(rasch.erm, splitcr = personality.bin$gender)
+round(wald.gender$coef.table, 3)
+
+misfit.gender <- names(items.bin)[wald.gender$coef.table[, "p-value"] < .05]
+misfit.gender
+```
+
+`r paste(misfit.gender, collapse = " and ")` are responsible for the misfit: their
+difficulty differs significantly between women and men.
+
+### Exercise 1f
+
+*Plot the item goodness-of-(mis)fit for the gender subgroups. (0.5pt)*
+
+```{r ex-1f, fig.width = 6, fig.height = 6}
+plotGOF(lr.gender, tlab = "item", conf = list(), main = "Gender",
+        xlab = "Beta (female)", ylab = "Beta (male)")
+```
+
+### Exercise 1g
+
+*If the Rasch model is not invariant across gender, does that mean that the items that show misfit are bad? Explain why (not)? (0.5pt)*
+
+Not necessarily: misfit means the item works differently for women and men
+(DIF), so scores on it are not comparable between groups. The item can still
+measure the trait well within each group.
+
+### Exercise 1h
+
+*Test if the Rasch model is invariant across education. If this is not the case, which items are responsible for the misfit? Show those items again in a plot. (0.5pt)*
+
+```{r ex-1h}
+lr.education <- LRtest(rasch.erm, splitcr = personality.bin$education)
+lr.education
+```
+
+The LR test is not significant (p = `r sprintf("%.3f", lr.education$pvalue)`),
+so the model is invariant across education and there are no misfitting items to
+show. It is borderline though.
+
+## 2. The 2 PL model
+
+### Exercise 2a
+
+*Explain the main theoretical difference between the Rasch model and a 2PL model. (0.5pt)*
+
+The Rasch model assumes all items discriminate equally (same slope), so items
+only differ in difficulty. The 2PL adds a discrimination parameter per item, so
+the ICCs can have different slopes.
+
+### Exercise 2b
+
+*Fit a 2PL model to the data (without covariates) using the ltm package and give the conditional log-likelihood of the model. (0.5pt)*
+
+```{r ex-2b}
+twopl <- ltm(items.bin ~ z1)
+twopl$log.Lik
+```
+
+The log-likelihood is `r sprintf("%.2f", twopl$log.Lik)`. Note that `ltm` uses
+marginal ML, so this is the marginal (not conditional) log-likelihood.
+
+### Exercise 2c
+
+*Calculate the correlation between the item difficulties of the Rasch model and those of the 2PL model and plot the item difficulties of the Rasch model against those of the 2PL model. (1pt)*
+
+```{r ex-2c, fig.width = 5, fig.height = 5}
+difficulty.2pl <- coef(twopl)[, "Dffclt"]
+
+cor.difficulty <- cor(difficulty.rasch, difficulty.2pl)
+round(cor.difficulty, 3)
+
+plot(difficulty.rasch, difficulty.2pl,
+     xlab = "Rasch difficulty (eRm)", ylab = "2PL difficulty (ltm)", pch = 19,
+     ylim = range(difficulty.2pl) + c(-.05, .1))
+text(difficulty.rasch, difficulty.2pl, names(items.bin), pos = 3, cex = .7)
+abline(lm(difficulty.2pl ~ difficulty.rasch), lty = 2)
+```
+
+The difficulties correlate at r = `r sprintf("%.3f", cor.difficulty)`.
+
+### Exercise 2d
+
+*Based on this plot and the correlation, could you infer any differences between the Rasch and 2PL model for this data? If yes, explain which inference, if no, explain why not. (0.5pt)*
+
+Not really: both models order the items by difficulty in almost exactly the same
+way. The models differ in the discrimination parameters, which this plot
+doesn't show (the two are also on different scales, so only the ordering is
+comparable).
+
+### Exercise 2e
+
+*You can also use a likelihood ratio test to compare the models. To do this, first, fit a Rasch model to the data with the `rasch` function of the ltm package. (0.5pt)*
+
+```{r ex-2e}
+# by default this estimates one common discrimination for all items
+rasch.ltm <- rasch(items.bin)
+rasch.ltm
+```
+
+### Exercise 2f
+
+*Perform an anova comparing the Rasch and 2PL models you estimated with the ltm package. What is the null hypothesis and what is the alternative hypothesis in this test? What is the outcome of the anova? And what does this say about the model comparison? (0.5pt)*
+
+```{r ex-2f}
+model.comparison <- anova(rasch.ltm, twopl)
+model.comparison
+```
+
+H0: the Rasch model fits as well as the 2PL (all discriminations are equal).
+H1: the 2PL fits better (discriminations differ between items). The LR test is
+significant (LRT = `r sprintf("%.2f", model.comparison$LRT)`,
+df = `r model.comparison$df`, p `r format.pval(model.comparison$p.value, eps = .001)`)
+and AIC and BIC are lower for the 2PL, so the 2PL fits the data better.
+
+### Exercise 2g
+
+*Would it make sense to also test the fit of the 3PL model in the current case? Explain why (not)? (0.5pt)*
+
+No: the 3PL adds a guessing parameter (lower asymptote), but on a personality
+questionnaire there is no correct answer to guess, so it has no meaning here.
+
+## 3. Polytomous IRT Models
+
+The company received 175 applications for three new jobs. However, the company can only invite 30 candidates. The management plans to invite the 30 applicants with the highest scores on the latent variable 'personality'. They ask you to first fit a graded response model to the original polytomous data, and then to use the estimated model to calculate a latent personality score for each of the 175 applicants.
+
+### Exercise 3a
+
+*Read the data from `data_3_personality.csv` into your R working space. This is the same data that you used in the previous two assignments.*
+
+```{r ex-3a}
+personality <- read.csv(here("data", "ass2", "data_3_personality.csv"))
+head(personality)
+
+items <- personality[, startsWith(names(personality), "P")]
+```
+
+### Exercise 3b
+
+*Fit a graded response model to the data without covariates and inspect the coefficients. Which item discriminates the most according to the model? (0.5pt)*
+
+```{r ex-3b}
+grm.fit <- grm(items)
+grm.coef <- coef(grm.fit)
+round(grm.coef, 2)
+```
+
+`r names(which.max(grm.coef[, "Dscrmn"]))` discriminates the most
+(a = `r sprintf("%.2f", max(grm.coef[, "Dscrmn"]))`).
+
+### Exercise 3c
+
+*Plot the ICCs for all items. Describe how the plots correspond to the estimated item parameters. (0.5pt)*
+
+```{r ex-3c, fig.width = 12, fig.height = 9}
+par(mfrow = c(3, 4))
+for (i in seq_along(items)) {
+  plot(grm.fit, type = "ICC", items = i, main = names(items)[i])
+}
+```
+
+Steeper curves belong to items with a higher discrimination (e.g.
+`r names(which.max(grm.coef[, "Dscrmn"]))`), flatter ones to lower discrimination
+(e.g. `r names(which.min(grm.coef[, "Dscrmn"]))`). The extremity parameters set
+where along the latent trait the categories take over from each other: items
+with low extremity parameters (e.g. P3_3, P2_5) have their curves shifted to the
+left, so higher categories are already likely at lower trait levels.
+
+### Exercise 3d
+
+*Read the data from `data_3_candidates.csv` into your R working space. This data contains the scores for all 175 applicants on the personality questionnaire. The first column contains the names of the participants. Use these names for the row names. (0.5pt)*
+
+```{r ex-3d}
+candidates <- read.csv(here("data", "ass2", "data_3_candidates.csv"), row.names = 1)
+head(candidates)
+```
+
+### Exercise 3e
+
+*Estimate a factor score for each applicant, using the model estimated on the original data. Give the names of the 30 candidates with the highest factor scores who will be invited for a job interview. (1pt)*
+
+```{r ex-3e}
+scores <- factor.scores(grm.fit, resp.patterns = candidates[, names(items)])$score.dat
+
+invited <- head(rownames(scores)[order(scores$z1, decreasing = TRUE)], 30)
+invited
+```
+
+These 30 candidates have the highest factor scores and get invited for an
+interview.
